@@ -894,9 +894,20 @@ func GetFeeds(opts GetFeedsOptions) ([]*Action, error) {
 		cond = cond.And(builder.Eq{"is_deleted": false})
 	}
 
-	actions := make([]*Action, 0, 20)
+	now := time.Now().UTC()
+	dash_horizon := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	// Roll back to Monday and a week
+	if wd := now.Weekday(); wd == time.Sunday {
+		dash_horizon = dash_horizon.AddDate(0, 0, -6-7)
+	} else {
+		dash_horizon = dash_horizon.AddDate(0, 0, -int(wd)+1-7)
+	}
 
-	if err := x.Limit(20).Desc("id").Where(cond).Find(&actions); err != nil {
+	cond = cond.And(builder.Gt{"created_unix": dash_horizon.Unix()})
+
+	actions := make([]*Action, 0, 10000)
+
+	if err := x.Limit(10000).Desc("id").Where(cond).Find(&actions); err != nil {
 		return nil, fmt.Errorf("Find: %v", err)
 	}
 
